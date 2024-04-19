@@ -166,6 +166,7 @@ static int free_unmarked()
 
 static void mark_tree(pvm_object_storage_t * p)
 {
+    ph_printf("\nGC: process another object\n");
     p->_ah.gc_flags = gc_flags_last_generation;  // set
 
 

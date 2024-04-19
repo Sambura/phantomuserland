@@ -579,6 +579,26 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
 
 
     //init_wins(u_int32_t ip_addr);
+    {
+        hal_sleep_msec(2000);
+
+        ph_printf("\ndumpo:\n");
+        pvm_object_t p = get_root_object_storage();
+        dumpo(p);
+
+        unsigned i;
+
+        for (i = 0; i < da_po_limit(p); i++) {
+            dumpo(da_po_ptr(p->da)[i]);
+        }
+
+
+        ph_printf("\nGC started:\n");
+        phantom_snapper_wait_4_threads();
+        run_gc();
+        ph_printf("\nGC end:\n");
+        phantom_snapper_reenable_threads();
+    }
 
     ph_printf("\n\x1b[33m\x1b[44mPhantom " PHANTOM_VERSION_STR " (SVN rev %s) @ %s started\x1b[0m\n\n", svn_version(), phantom_uname.machine );
 

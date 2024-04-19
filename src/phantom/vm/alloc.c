@@ -433,7 +433,7 @@ static pvm_object_t pvm_find(unsigned int size, int arena)
 
 
 
-#define PVM_GC_ENABLE 0
+#define PVM_GC_ENABLE 1
 
 
 static pvm_object_storage_t * pool_alloc(unsigned int size, int arena)
