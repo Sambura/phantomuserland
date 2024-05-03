@@ -44,6 +44,7 @@ void debug_catch_object(const char *msg, pvm_object_storage_t *p);
 // gc
 
 void run_gc(void);
+void run_gc_on_snap();
 
 // Make sure this object won't be deleted with refcount dec
 // used on sys global objects

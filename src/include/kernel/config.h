@@ -17,6 +17,7 @@
 
 #define NEW_TASK_BAR 1
 
+#define N_OBJMEM_PAGES ((1024L*1024*32)/4096)
 
 #define UHCI_INTERRUPT 0
 #define OHCI_INTERRUPT 1
