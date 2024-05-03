@@ -1150,6 +1150,10 @@ void pvm_gc_iter_connection(gc_iterator_call_t func, pvm_object_t  os, void *arg
 
     pvm_object_t ot;
     //ot.interface = 0;
+    // TODO: find out why it could be 0? fix?
+    if (da->owner == 0) {
+        return;
+    }
     ot = (void *) (((addr_t)da->owner)-DA_OFFSET());
 	long long shift = *(long long*)arg;
     gc_fcall( func, arg, shift_ptr(ot, shift) );
