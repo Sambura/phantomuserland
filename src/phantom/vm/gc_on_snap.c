@@ -31,6 +31,8 @@
 
 #include <ph_malloc.h>
 
+static long long shift;
+
 static pvm_object_t shift_ptr(pvm_object_t o, long long shift)
 {
     return (pvm_object_t)((char*)o + shift);
@@ -68,12 +70,13 @@ static char* load_snap() {
 
         disk_page_no_t curr_block;
         snapshot = ph_calloc(page_count, PAGE_SIZE);
+        char* snapshot_seeker = snapshot;
         unsigned int np;
 
         for (np = 0; np < page_count; np++) {
             if (!pagelist_read_seq(&loader, &curr_block)) {
                 ph_printf("\n!!! Incomplete pagelist !!!\n");
-                //panic("Incomplete pagelist\n");
+                snapshot = 0;
                 break;
             }
 
@@ -89,8 +92,8 @@ static char* load_snap() {
                 panic("failed to load snapshot in gc\n");
             }
 
-            ph_memcpy(snapshot, disk_page_io_data(&sb), PAGE_SIZE);
-            snapshot += PAGE_SIZE;
+            ph_memcpy(snapshot_seeker, disk_page_io_data(&sb), PAGE_SIZE);
+            snapshot_seeker += PAGE_SIZE;
         }
 
         pagelist_finish(&loader);
@@ -99,9 +102,9 @@ static char* load_snap() {
     return snapshot;
 }
 
-static void mark_tree(pvm_object_storage_t *p, long long shift);
+static void mark_tree(pvm_object_storage_t *p);
 
-static pvm_object_storage_t **collect_unmarked(char *start, long long shift);
+static pvm_object_storage_t **collect_unmarked(char *start);
 
 static int free_unmarked(pvm_object_storage_t **to_free);
 
@@ -127,65 +130,81 @@ void run_gc_on_snap() {
         return;
     }
 
-    long long shift = snapshot - (char*)get_pvm_object_space_start();
+    shift = snapshot - (char*)get_pvm_object_space_start();
+    ph_printf("real space start: %p\n", get_pvm_object_space_start());
+    ph_printf("real space end: %p\n", get_pvm_object_space_end());
     ph_printf("snapshot is loaded\n");
-    ph_printf("shift: %d", shift);
+    ph_printf("shift: %d\n", shift);
     ph_printf("snapshot addr: %p\n", snapshot);
-    dumpo((addr_t)snapshot);
+    ph_printf("reference start marker: %d\n", PVM_OBJECT_START_MARKER);
 
-//    mark_tree((pvm_object_storage_t*)snapshot, shift);
-//    pvm_object_storage_t** to_free = collect_unmarked(snapshot, shift);
+    mark_tree((pvm_object_storage_t*)snapshot);
+    pvm_object_storage_t** to_free = collect_unmarked(snapshot);
 
     // Second pass - linear walk to free unused objects.
-//    int freed = free_unmarked(to_free);
-//
-//    if (freed > 0)
-//        ph_printf("\ngc: %i objects freed\n", freed);
+   int freed = free_unmarked(to_free);
+
+   if (freed > 0)
+       ph_printf("\ngc: %i objects freed\n", freed);
 }
 
-static void mark_tree(pvm_object_storage_t* p, long long shift)
+static void mark_tree(pvm_object_storage_t* obj_in_snap)
 {
     ph_printf("\nGC: process another object\n");
-    p->_ah.gc_flags = gc_flags_last_generation;  // set
+    ph_printf("Flags: '");
+    print_object_flags(obj_in_snap);
+    ph_printf("'\n");
+    printf("object class:\n");
+    dumpo(obj_in_snap->_class);
 
-    assert(p->_ah.object_start_marker == PVM_OBJECT_START_MARKER);
-    assert(p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_ALLOCATED);
+    ph_printf("p: %p, p->ah: %p\n", obj_in_snap, &obj_in_snap->_ah);
+    obj_in_snap->_ah.gc_flags = gc_flags_last_generation;  // set
 
+    ph_printf("assert start marker and allocated\n");
+    ph_printf("start marker: %d\n", obj_in_snap->_ah.object_start_marker);
+    
+    assert(obj_in_snap->_ah.object_start_marker == PVM_OBJECT_START_MARKER);
+    assert(obj_in_snap->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_ALLOCATED);
+
+    ph_printf("check if childfree\n");
     // Fast skip if no children -
-    if (!(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE)) {
-        gc_process_children(mark_tree_o, p, &shift);
+    if (!(obj_in_snap->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE)) {
+        ph_printf("not childfree, call gc_process_children\n");
+        ph_printf("shift addr: %p\n", &shift);
+        ph_printf("p addr: %p\n", &obj_in_snap);
+        gc_process_children(mark_tree_o, obj_in_snap, 0);
     }
 }
 
-static void mark_tree_o(pvm_object_t o, void* arg) {
-    long long shift = *((long long*)arg);
-
-    if (o == 0) // Don't try to process null objects
+static void mark_tree_o(pvm_object_t obj_in_pvm, void* arg) {
+    if (obj_in_pvm == 0) // Don't try to process null objects
         return;
 
-    if (o->_ah.gc_flags != gc_flags_last_generation)
-        mark_tree(shift_ptr(o, shift), shift);
+    pvm_object_t obj_in_snap = shift_ptr(obj_in_pvm, shift);
+
+    if (obj_in_snap->_ah.gc_flags != gc_flags_last_generation)
+        mark_tree(obj_in_snap);
 
     //if (o.interface->_ah.gc_flags != gc_flags_last_generation)  mark_tree( o.interface );
 }
 
-static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* p, void* arg) {
-    f(p->_class, arg);
-
-    long long shift = *((long long*)arg);
+static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* obj_in_snap, void* arg) {
+    ph_printf("GC: process children\n");
+    f(obj_in_snap->_class, arg);
 
     // Fast skip if no children - done!
     //if( p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE )
     //    return;
 
     // plain non internal objects -
-    if (!(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL))
+    if (!(obj_in_snap->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL))
     {
+        ph_printf("External object, normal iter\n");
         unsigned i;
 
-        for (i = 0; i < da_po_limit(p); i++)
+        for (i = 0; i < da_po_limit(obj_in_snap); i++)
         {
-            f(da_po_ptr(p->da)[i], arg);
+            f(da_po_ptr(obj_in_snap->da)[i], arg);
         }
         return;
     }
@@ -193,13 +212,13 @@ static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* p, v
     // We're here if object is internal.
 
     // Now find and call class-specific function: pvm_gc_iter_*
+    ph_printf("Internal object, get iter method\n");
+    gc_iterator_func_t  iter = pvm_internal_classes[pvm_object_da(shift_ptr(obj_in_snap->_class, shift), class)->sys_table_id].iter;
 
-    gc_iterator_func_t  iter = pvm_internal_classes[pvm_object_da(p->_class, class)->sys_table_id].iter;
-
-    iter(f, p, arg);
+    iter(f, obj_in_snap, arg);
 }
 
-static pvm_object_storage_t** collect_unmarked(char* start, long long shift) {
+static pvm_object_storage_t** collect_unmarked(char* start) {
     char* end = (char*)start + N_OBJMEM_PAGES * 4096L;
     char* curr;
 
@@ -235,19 +254,20 @@ static int free_unmarked(pvm_object_storage_t** to_free) {
     int i = 0;
     while (to_free[i] != 0) {
         pvm_object_storage_t* p = to_free[i];
+        ph_printf("Freeing object %p\n", p);
 
-        if (p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_FINALIZER)
-        {
-            // based on the assumption that finalizer is only valid for some internal childfree objects - is it correct?
-            gc_finalizer_func_t  func = pvm_internal_classes[pvm_object_da(p->_class, class)->sys_table_id].finalizer;
+        // if (p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_FINALIZER)
+        // {
+        //     // based on the assumption that finalizer is only valid for some internal childfree objects - is it correct?
+        //     gc_finalizer_func_t  func = pvm_internal_classes[pvm_object_da(p->_class, class)->sys_table_id].finalizer;
 
-            if (func != 0)
-                func(p);
+        //     if (func != 0)
+        //         func(p);
 
-            // should run ref_dec for children?
-        }
+        //     // should run ref_dec for children?
+        // }
 
-        p->_ah.refCount = 0;  // free now
-        p->_ah.alloc_flags = PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE; // free now
+        // p->_ah.refCount = 0;  // free now
+        // p->_ah.alloc_flags = PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE; // free now
     }
 }
