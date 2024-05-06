@@ -43,10 +43,6 @@
  *
  **/
 
-static pvm_object_t shift_ptr( pvm_object_t o, long long shift )
-{
-	return (pvm_object_t)( (char*)o + shift );
-}
 
 static pvm_object_t 
 pvm_object_create_fixed( pvm_object_t object_class )
@@ -369,12 +365,11 @@ void pvm_gc_iter_page(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
 	int n_slots = (os->_da_size) / sizeof(pvm_object_t );
 	pvm_object_t * data_area = (pvm_object_t *)&(os->da);
-	long long shift = *(long long*)arg;
 
 	int i;
 	for( i = 0; i < n_slots; i++ )
 	{
-		func( shift_ptr(data_area[i], shift), arg );
+		func( data_area[i], arg );
 	}
 }
 
@@ -416,12 +411,11 @@ void pvm_internal_init_call_frame(pvm_object_t  os)
 void pvm_gc_iter_call_frame(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
 	struct data_area_4_call_frame *da = (struct data_area_4_call_frame *)&(os->da);
-	long long shift = *(long long*)arg;
-	gc_fcall( func, arg, shift_ptr(da->this_object, shift) );
-	gc_fcall( func, arg, shift_ptr(da->prev, shift) ); // FYI - shall never be followed in normal situation, must contain zero data ptr if being considered by refcount
-	gc_fcall( func, arg, shift_ptr(da->istack, shift) );
-	gc_fcall( func, arg, shift_ptr(da->ostack, shift) );
-	gc_fcall( func, arg, shift_ptr(da->estack, shift) );
+	gc_fcall( func, arg, da->this_object );
+	gc_fcall( func, arg, da->prev ); // FYI - shall never be followed in normal situation, must contain zero data ptr if being considered by refcount
+	gc_fcall( func, arg, da->istack );
+	gc_fcall( func, arg, da->ostack );
+	gc_fcall( func, arg, da->estack );
 }
 
 
@@ -533,17 +527,15 @@ void pvm_internal_init_class(pvm_object_t  os)
 void pvm_gc_iter_class(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
 	struct data_area_4_class *da = (struct data_area_4_class *)&(os->da);
-	long long shift = *(long long*)arg;
+	gc_fcall( func, arg, da->object_default_interface );
+	gc_fcall( func, arg, da->class_name );
+	gc_fcall( func, arg, da->class_parent );
 
-	gc_fcall( func, arg, shift_ptr(da->object_default_interface, shift) );
-	gc_fcall(func, arg, shift_ptr(da->class_name, shift));
-	gc_fcall(func, arg, shift_ptr(da->class_parent, shift));
+        gc_fcall( func, arg, da->static_vars );
 
-	gc_fcall(func, arg, shift_ptr(da->static_vars, shift));
-
-	gc_fcall(func, arg, shift_ptr(da->ip2line_maps, shift));
-	gc_fcall(func, arg, shift_ptr(da->method_names, shift));
-	gc_fcall(func, arg, shift_ptr(da->field_names, shift));
+        gc_fcall( func, arg, da->ip2line_maps );
+        gc_fcall( func, arg, da->method_names );
+        gc_fcall( func, arg, da->field_names );
 }
 
 
@@ -579,10 +571,9 @@ void pvm_internal_init_thread(pvm_object_t  os)
 void pvm_gc_iter_thread(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
 	struct data_area_4_thread *da = (struct data_area_4_thread *)&(os->da);
-	long long shift = *(long long*)arg;
-	gc_fcall( func, arg, shift_ptr(da->call_frame, shift) );
-	gc_fcall( func, arg, shift_ptr(da->owner, shift) );
-	gc_fcall( func, arg, shift_ptr(da->environment, shift) );
+	gc_fcall( func, arg, da->call_frame );
+	gc_fcall( func, arg, da->owner );
+	gc_fcall( func, arg, da->environment );
 }
 
 
@@ -616,9 +607,8 @@ void pvm_internal_init_array(pvm_object_t  os)
 void pvm_gc_iter_array(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
 	struct data_area_4_array *da = (struct data_area_4_array *)&(os->da);
-	long long shift = *(long long*)arg;
 	if(da->page != 0)
-		gc_fcall( func, arg, shift_ptr(da->page, shift) );
+		gc_fcall( func, arg, da->page );
 }
 
 
@@ -658,15 +648,13 @@ void pvm_gc_iter_mutex(gc_iterator_call_t func, pvm_object_t  os, void *arg)
     //pvm_spin_init( &da->pvm_lock );
 //    in_method = 0;
 
-	long long shift = *(long long*)arg;
-
-    gc_fcall( func, arg, shift_ptr(da->waiting_threads_array, shift) );
+    gc_fcall( func, arg, da->waiting_threads_array );
 
     //for( i = 0; i < MAX_MUTEX_THREADS; i++ )
     //    gc_fcall( func, arg, da->waiting_threads[i] );
 
 
-    gc_fcall( func, arg, shift_ptr(pvm_da_to_object(da->owner_thread), shift) );
+    gc_fcall( func, arg, pvm_da_to_object(da->owner_thread) );
 }
 
 
@@ -684,8 +672,8 @@ void pvm_gc_iter_cond(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
     struct data_area_4_cond *      da = (struct data_area_4_cond *)os->da;
     //int i;
-	long long shift = *(long long*)arg;
-    gc_fcall( func, arg, shift_ptr(da->waiting_threads_array, shift) );
+
+    gc_fcall( func, arg, da->waiting_threads_array );
 
     //for( i = 0; i < MAX_MUTEX_THREADS; i++ )
     //    gc_fcall( func, arg, da->waiting_threads[i] );
@@ -709,13 +697,12 @@ void pvm_gc_iter_sema(gc_iterator_call_t func, pvm_object_t  os, void *arg)
     struct data_area_4_sema *      da = (struct data_area_4_sema *)os->da;
     //int i;
 
-	long long shift = *(long long*)arg;
-    gc_fcall( func, arg, shift_ptr(da->waiting_threads_array, shift) );
+    gc_fcall( func, arg, da->waiting_threads_array );
 
     //for( i = 0; i < MAX_MUTEX_THREADS; i++ )
     //    gc_fcall( func, arg, da->waiting_threads[i] );
 
-    gc_fcall( func, arg, shift_ptr(pvm_da_to_object(da->owner_thread), shift) );
+    gc_fcall( func, arg, pvm_da_to_object(da->owner_thread) );
 }
 
 
@@ -763,9 +750,8 @@ void pvm_internal_init_bitmap(pvm_object_t  os)
 void pvm_gc_iter_bitmap(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
 	struct data_area_4_bitmap *da = (struct data_area_4_bitmap *)&(os->da);
-	long long shift = *(long long*)arg;
 	if(da->image != 0)
-		gc_fcall( func, arg, shift_ptr(da->image, shift) );
+		gc_fcall( func, arg, da->image );
 }
 
 
@@ -797,8 +783,7 @@ void pvm_gc_iter_closure(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
     struct data_area_4_closure *      da = (struct data_area_4_closure *)os->da;
     //if(da->image.object != 0)
-	long long shift = *(long long*)arg;
-    gc_fcall( func, arg, shift_ptr(da->object, shift) );
+    gc_fcall( func, arg, da->object );
 }
 
 
@@ -961,9 +946,9 @@ void pvm_internal_init_window(pvm_object_t os)
 void pvm_gc_iter_window(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
     struct data_area_4_window *da = (struct data_area_4_window *)os->da;
-	long long shift = *(long long*)arg;
-    gc_fcall( func, arg, shift_ptr(da->connector, shift) );
-    gc_fcall( func, arg, shift_ptr(da->o_pixels, shift) );
+
+    gc_fcall( func, arg, da->connector );
+    gc_fcall( func, arg, da->o_pixels );
 }
 
 
@@ -1113,9 +1098,9 @@ pvm_object_t     pvm_create_directory_object(void)
 void pvm_gc_iter_directory(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
     struct data_area_4_directory      *da = (struct data_area_4_directory *)os->da;
-	long long shift = *((long long*)arg);
-    gc_fcall( func, arg, shift_ptr(da->keys, shift) );
-    gc_fcall( func, arg, shift_ptr(da->values, shift) );
+
+    gc_fcall( func, arg, da->keys );
+    gc_fcall( func, arg, da->values );
 }
 
 
@@ -1155,10 +1140,10 @@ void pvm_gc_iter_connection(gc_iterator_call_t func, pvm_object_t  os, void *arg
         return;
     }
     ot = (void *) (((addr_t)da->owner)-DA_OFFSET());
-	long long shift = *(long long*)arg;
-    gc_fcall( func, arg, shift_ptr(ot, shift) );
-    gc_fcall( func, arg, shift_ptr(da->p_kernel_state_object, shift) );
-    gc_fcall( func, arg, shift_ptr(da->callback, shift) );
+
+    gc_fcall( func, arg, ot );
+    gc_fcall( func, arg, da->p_kernel_state_object );
+    gc_fcall( func, arg, da->callback );
 }
 
 

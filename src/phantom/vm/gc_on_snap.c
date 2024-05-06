@@ -128,15 +128,19 @@ void run_gc_on_snap() {
     }
 
     long long shift = snapshot - (char*)get_pvm_object_space_start();
+    ph_printf("snapshot is loaded\n");
+    ph_printf("shift: %d", shift);
+    ph_printf("snapshot addr: %p\n", snapshot);
+    dumpo((addr_t)snapshot);
 
-    mark_tree((pvm_object_storage_t*)snapshot, shift);
-    pvm_object_storage_t** to_free = collect_unmarked(snapshot, shift);
+//    mark_tree((pvm_object_storage_t*)snapshot, shift);
+//    pvm_object_storage_t** to_free = collect_unmarked(snapshot, shift);
 
     // Second pass - linear walk to free unused objects.
-    int freed = free_unmarked(to_free);
-
-    if (freed > 0)
-        ph_printf("\ngc: %i objects freed\n", freed);
+//    int freed = free_unmarked(to_free);
+//
+//    if (freed > 0)
+//        ph_printf("\ngc: %i objects freed\n", freed);
 }
 
 static void mark_tree(pvm_object_storage_t* p, long long shift)
@@ -160,7 +164,7 @@ static void mark_tree_o(pvm_object_t o, void* arg) {
         return;
 
     if (o->_ah.gc_flags != gc_flags_last_generation)
-        mark_tree(o, shift);
+        mark_tree(shift_ptr(o, shift), shift);
 
     //if (o.interface->_ah.gc_flags != gc_flags_last_generation)  mark_tree( o.interface );
 }
@@ -181,7 +185,7 @@ static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* p, v
 
         for (i = 0; i < da_po_limit(p); i++)
         {
-            f(shift_ptr(da_po_ptr(p->da)[i], shift), arg);
+            f(da_po_ptr(p->da)[i], arg);
         }
         return;
     }

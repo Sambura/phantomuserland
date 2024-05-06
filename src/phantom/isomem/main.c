@@ -580,7 +580,7 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
 
     //init_wins(u_int32_t ip_addr);
     {
-        hal_sleep_msec(2000);
+        hal_sleep_msec(10000);
 
         ph_printf("\ndumpo:\n");
         pvm_object_t p = get_root_object_storage();
@@ -595,7 +595,7 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
 
         ph_printf("\nGC started:\n");
         phantom_snapper_wait_4_threads();
-        run_gc();
+         run_gc();
         ph_printf("\nGC end:\n");
         phantom_snapper_reenable_threads();
     }
