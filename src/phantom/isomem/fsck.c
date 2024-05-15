@@ -596,7 +596,8 @@ static void free_blocklist_page_snap_worker(disk_page_no_t toFree, int flags)
 void phantom_free_snap(
                        disk_page_no_t old_snap_start,
                        disk_page_no_t curr_snap_start,
-                       disk_page_no_t new_snap_start
+                       disk_page_no_t new_snap_start,
+                       disk_page_no_t snap_reading
                       )
 {
     if( old_snap_start == 0 )
@@ -611,7 +612,7 @@ void phantom_free_snap(
     fsck_list_justadd_as_free( old_snap_start );
     fsck_list_justadd_as_used( curr_snap_start );
     fsck_list_justadd_as_used( new_snap_start );
-
+    fsck_list_justadd_as_used( snap_reading );
 
     // go through list, free pages that are finally free in map
     iterate_map(free_snap_worker, MAP_FREE);

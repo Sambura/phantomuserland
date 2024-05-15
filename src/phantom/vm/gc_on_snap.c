@@ -61,6 +61,13 @@ static char* load_snap() {
         hal_printf("\n!!! No pagelist to load !!!\n");
     }
     else {
+        if (pager_superblock_ptr()->snap_already_read != 0) {
+            ph_printf("\n!!! Previously loaded snapshot not cleaned yet !!!\n");
+            return snapshot;
+        }
+
+        pager_superblock_ptr()->snap_reading = snap_start;
+
         hal_printf("Loading pagelist from %d...\n", snap_start);
 
         pagelist loader;
@@ -98,6 +105,9 @@ static char* load_snap() {
         }
 
         pagelist_finish(&loader);
+
+        pager_superblock_ptr()->snap_reading = 0;
+        pager_superblock_ptr()->snap_already_read = snap_start;
     }
 
     return snapshot;

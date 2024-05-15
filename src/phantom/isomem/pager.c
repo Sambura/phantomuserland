@@ -205,6 +205,13 @@ void partition_pager_init(phantom_disk_partition_t *p)
     if (freed_list_blocks == NULL) panic("Out of memory");
 #endif
 
+    {
+        phantom_disk_format(&superblock, 0x50000, "Unnamed Phantom System");
+        phantom_sync_write_block(pp, &superblock, 0, 1);
+        ph_printf("SUPERBLOCK WRITTEN");
+        hal_sleep_msec(60 * 1000);
+    }
+
     SHOW_FLOW0( 1, "Pager get superblock" );
     pager_get_superblock();
 
