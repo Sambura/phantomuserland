@@ -593,11 +593,11 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
         }
 
 
-        ph_printf("\nGC started:\n");
-        phantom_snapper_wait_4_threads();
-        run_gc_on_snap();
-        ph_printf("\nGC end:\n");
-        phantom_snapper_reenable_threads();
+        // ph_printf("\nGC started:\n");
+        // phantom_snapper_wait_4_threads();
+        // run_gc_on_snap();
+        // ph_printf("\nGC end:\n");
+        // phantom_snapper_reenable_threads();
     }
 
     ph_printf("\n\x1b[33m\x1b[44mPhantom " PHANTOM_VERSION_STR " (SVN rev %s) @ %s started\x1b[0m\n\n", svn_version(), phantom_uname.machine );

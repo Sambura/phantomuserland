@@ -1657,6 +1657,7 @@ static int request_snap_flag = 0;
 static int seconds_between_snaps = 5;
 
 static void free_old_snapshot() {
+    return;
     if (pager_superblock_ptr()->snap_to_free == 0) return;
 
     disk_page_no_t to_free = pager_superblock_ptr()->snap_to_free;

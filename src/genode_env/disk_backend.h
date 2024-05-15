@@ -39,7 +39,7 @@ protected:
 
     Genode::Env &_env;
     Genode::Heap &_heap;
-    Genode::Entrypoint _ep{_env, 2*1024*sizeof(long) , "disk_ep", Genode::Affinity::Location()};
+    Genode::Entrypoint _ep{_env, 30*1024*sizeof(long) , "disk_ep", Genode::Affinity::Location()};
     Genode::Allocator_avl _block_alloc{&_heap};
 
     struct DJob : Block::Connection<DJob>::Job

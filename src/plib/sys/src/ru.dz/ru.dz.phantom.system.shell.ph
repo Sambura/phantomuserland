@@ -54,7 +54,7 @@ class shell extends runnable
 
     //var mtx : .internal.mutex;
 
-    var demo : .ru.dz.demo.wasm;
+    //var demo : .ru.dz.demo.wasm;
     // var demo : .ru.dz.demo.start;
     // var demo : .ru.dz.phantom.persistence_test;
 /*
@@ -114,10 +114,16 @@ class shell extends runnable
         stat_conn = new .internal.connection();
         stat_conn.connect("stt:");
 
+<<<<<<< HEAD
         // demo = new .ru.dz.demo.start();
         demo = new .ru.dz.demo.wasm();
         // demo = new .ru.dz.phantom.persistence_test();
         demo.run(console);
+=======
+        //demo = new .ru.dz.demo.start();
+        //demo = new .ru.dz.demo.wasm();
+        //demo.run(console);
+>>>>>>> 925597fc (dump: collection on snapshot)
 
         while(1)
         {

@@ -36,6 +36,11 @@ void setup_adapters(Env &env)
 	Phantom::main_obj = &local_main;
 }
 
+Genode::size_t Component::stack_size() {
+    return 60 * 1024 * sizeof(long);
+}
+
+
 void test_adapters()
 {
 	log("Checking if main_obj is initialized");

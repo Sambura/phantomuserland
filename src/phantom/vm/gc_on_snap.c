@@ -81,7 +81,8 @@ static char* load_snap() {
             }
 
             if (curr_block == 0) {
-                continue;
+                snapshot_seeker += PAGE_SIZE;
+                continue; // change 
             }
 
             disk_page_io sb;
@@ -154,15 +155,15 @@ static void mark_tree(pvm_object_storage_t* obj_in_snap)
     ph_printf("Flags: '");
     print_object_flags(obj_in_snap);
     ph_printf("'\n");
-    printf("object class:\n");
-    dumpo(obj_in_snap->_class);
+    // ph_printf("object class:\n");
+    // dumpo(obj_in_snap->_class);
 
-    ph_printf("p: %p, p->ah: %p\n", obj_in_snap, &obj_in_snap->_ah);
+    ph_printf("p: %p, p->ah: %p, p->da: %p\n", obj_in_snap, &obj_in_snap->_ah, obj_in_snap->da);
+    ph_printf("start marker: %d\n", obj_in_snap->_ah.object_start_marker);
+
     obj_in_snap->_ah.gc_flags = gc_flags_last_generation;  // set
 
     ph_printf("assert start marker and allocated\n");
-    ph_printf("start marker: %d\n", obj_in_snap->_ah.object_start_marker);
-    
     assert(obj_in_snap->_ah.object_start_marker == PVM_OBJECT_START_MARKER);
     assert(obj_in_snap->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_ALLOCATED);
 
@@ -256,18 +257,19 @@ static int free_unmarked(pvm_object_storage_t** to_free) {
         pvm_object_storage_t* p = to_free[i];
         ph_printf("Freeing object %p\n", p);
 
-        // if (p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_FINALIZER)
-        // {
-        //     // based on the assumption that finalizer is only valid for some internal childfree objects - is it correct?
-        //     gc_finalizer_func_t  func = pvm_internal_classes[pvm_object_da(p->_class, class)->sys_table_id].finalizer;
+        if (p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_FINALIZER)
+        {
+            // based on the assumption that finalizer is only valid for some internal childfree objects - is it correct?
+            gc_finalizer_func_t  func = pvm_internal_classes[pvm_object_da(p->_class, class)->sys_table_id].finalizer;
 
-        //     if (func != 0)
-        //         func(p);
+            if (func != 0)
+                func(p);
 
-        //     // should run ref_dec for children?
-        // }
+            // should run ref_dec for children?
+        }
 
-        // p->_ah.refCount = 0;  // free now
-        // p->_ah.alloc_flags = PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE; // free now
+        p->_ah.refCount = 0;  // free now
+        p->_ah.alloc_flags = PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE; // free now
+        i++;
     }
 }
