@@ -81,6 +81,7 @@ static char* load_snap() {
         unsigned int np;
 
         for (np = 0; np < page_count; np++) {
+            ph_printf("np: %d/%d\n", np, page_count);
             if (!pagelist_read_seq(&loader, &curr_block)) {
                 ph_printf("\n!!! Incomplete pagelist !!!\n");
                 snapshot = 0;

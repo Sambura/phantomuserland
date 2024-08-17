@@ -524,19 +524,20 @@ void pvm_internal_init_class(pvm_object_t  os)
 }
 
 
-void pvm_gc_iter_class(gc_iterator_call_t func, pvm_object_t  os, void *arg)
+void pvm_gc_iter_class(gc_iterator_call_t func, pvm_object_t  os, void* arg)
 {
     ph_printf("iter class called on %p\n", os);
-	struct data_area_4_class *da = (struct data_area_4_class *)&(os->da);
-	gc_fcall( func, arg, da->object_default_interface );
-	gc_fcall( func, arg, da->class_name );
-	gc_fcall( func, arg, da->class_parent );
+    struct data_area_4_class* da = (struct data_area_4_class*)&(os->da);
+    gc_fcall(func, arg, da->object_default_interface);
+    gc_fcall(func, arg, da->class_name);
+    gc_fcall(func, arg, da->class_parent);
 
-        gc_fcall( func, arg, da->static_vars );
+    gc_fcall(func, arg, da->static_vars);
 
-        gc_fcall( func, arg, da->ip2line_maps );
-        gc_fcall( func, arg, da->method_names );
-        gc_fcall( func, arg, da->field_names );
+    gc_fcall(func, arg, da->ip2line_maps);
+    gc_fcall(func, arg, da->method_names);
+    gc_fcall(func, arg, da->field_names);
+    gc_fcall(func, arg, da->const_pool);
 }
 
 
