@@ -593,12 +593,14 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
         // }
 
         ph_printf("\nGC started:\n");
-        // pvm_object_t obj = (void*)0x80a55740;
-        // dumpo(obj);
-        phantom_snapper_wait_4_threads();
+        // phantom_snapper_wait_4_threads();
         run_gc_on_snap();
         ph_printf("\nGC end:\n");
-        phantom_snapper_reenable_threads();
+        // ph_printf("before reenable threads:\n");
+        // pvm_object_t obj = (void*)0x413f4fb8;
+        // dumpo(obj);
+        // phantom_snapper_reenable_threads();
+        // ph_printf("after reenable threads:\n");
     }
 
     ph_printf("\n\x1b[33m\x1b[44mPhantom " PHANTOM_VERSION_STR " (SVN rev %s) @ %s started\x1b[0m\n\n", svn_version(), phantom_uname.machine );

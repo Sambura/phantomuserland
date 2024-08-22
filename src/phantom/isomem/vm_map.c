@@ -1658,6 +1658,7 @@ static int seconds_between_snaps = 5;
 
 static void free_old_snapshot() {
     disk_page_no_t to_free = pager_superblock_ptr()->snap_to_free;
+    disk_page_no_t snap_already_read = pager_superblock_ptr()->snap_already_read;
     disk_page_no_t snap_reading = pager_superblock_ptr()->snap_reading;
 
     if (to_free == 0 || to_free == snap_reading) return;
@@ -1665,25 +1666,17 @@ static void free_old_snapshot() {
     disk_page_no_t actual1 = pager_superblock_ptr()->prev_snap;
     disk_page_no_t actual2 = pager_superblock_ptr()->last_snap;
     disk_page_no_t actual3 = (snap_reading == actual1 || snap_reading == actual2) ? 0 : snap_reading;
+    disk_page_no_t[] actual_arr = { actual1, acutal2, actual3 };
 
-    phantom_free_snap( to_free, actual1, actual2, actual3 );
+    disk_page_no_t free1 = to_free;
+    disk_page_no_t free2 = (snap_already_read != free1) ? snap_already_read : 0;
+    disk_page_no_t[] free_arr = { free1, free2 };
+
+    phantom_free_snap(free_arr, 2, actual_arr, 3);
     
     pager_superblock_ptr()->snap_to_free = 0;
-    pager_fence();
-    pager_update_superblock();
-
-    disk_page_no_t snap_already_read = pager_superblock_ptr()->snap_already_read;
-    if (snap_already_read != 0) {
-        if (snap_already_read != to_free) {
-            phantom_free_snap(snap_already_read, actual1, actual2, actual3);
-        }
-        
-        pager_superblock_ptr()->snap_already_read = 0;
-    }
-
     // Force all io to complete BEFORE updating superblock
     pager_fence();
-
     pager_update_superblock();
 
     pager_free_blocklist_pages();
@@ -1701,7 +1694,7 @@ static void vm_map_snapshot_thread(void)
         SHOW_FLOW0( 1, "Snapshot loop");
         SHOW_FLOW(0, "%d %d %d", stop_lazy_pageout_thread, vm_regular_snaps_enabled, request_snap_flag);
         
-        free_old_snapshot();
+        // free_old_snapshot();
 
         if( stop_lazy_pageout_thread )
         {

@@ -5,6 +5,8 @@
 
 struct data_area_4_wasm
 {
+    bool is_master;
+
     // .internal.array, stores objects containing description of wasm native symbols 
     pvm_object_t wasm_native_symbols;
     // .internal.array, stores objects allocated by wasm runtime using malloc

@@ -81,7 +81,9 @@ static char* load_snap() {
         unsigned int np;
 
         for (np = 0; np < page_count; np++) {
-            ph_printf("np: %d/%d\n", np, page_count);
+            if (np % 500 == 0)
+                ph_printf("np: %d/%d\n", np, page_count);
+            
             if (!pagelist_read_seq(&loader, &curr_block)) {
                 ph_printf("\n!!! Incomplete pagelist !!!\n");
                 snapshot = 0;
@@ -162,28 +164,27 @@ void run_gc_on_snap() {
 
 static void mark_tree(pvm_object_storage_t* obj_in_snap)
 {
-    ph_printf("\nGC: process another object\n");
-    ph_printf("Flags: '");
-    print_object_flags(obj_in_snap);
-    ph_printf("'\n");
+    // ph_printf("\nGC: process another object\n");
+    // ph_printf("Flags: '");
+    // print_object_flags(obj_in_snap);
+    // ph_printf("'\n");
     // ph_printf("object class:\n");
     // dumpo(obj_in_snap->_class);
 
-    ph_printf("p: %p, p->ah: %p, p->da: %p\n", obj_in_snap, &obj_in_snap->_ah, obj_in_snap->da);
-    ph_printf("start marker: %d\n", obj_in_snap->_ah.object_start_marker);
+    // ph_printf("p: %p, p->ah: %p, p->da: %p\n", obj_in_snap, &obj_in_snap->_ah, obj_in_snap->da);
+    // ph_printf("start marker: %d\n", obj_in_snap->_ah.object_start_marker);
 
     obj_in_snap->_ah.gc_flags = gc_flags_last_generation;  // set
 
-    ph_printf("assert start marker and allocated\n");
+    // ph_printf("assert start marker and allocated\n");
     assert(obj_in_snap->_ah.object_start_marker == PVM_OBJECT_START_MARKER);
     assert(obj_in_snap->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_ALLOCATED);
 
-    ph_printf("check if childfree\n");
+    // ph_printf("check if childfree\n");
     // Fast skip if no children -
     if (!(obj_in_snap->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE)) {
-        ph_printf("not childfree, call gc_process_children\n");
-        ph_printf("shift addr: %p\n", &shift);
-        ph_printf("p addr: %p\n", &obj_in_snap);
+        // ph_printf("not childfree, call gc_process_children\n");
+        // ph_printf("p addr: %p\n", &obj_in_snap);
         gc_process_children(mark_tree_o, obj_in_snap, 0);
     }
 }
@@ -201,7 +202,7 @@ static void mark_tree_o(pvm_object_t obj_in_pvm, void* arg) {
 }
 
 static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* obj_in_snap, void* arg) {
-    ph_printf("GC: process children\n");
+    // ph_printf("GC: process children\n");
     f(obj_in_snap->_class, arg);
 
     // Fast skip if no children - done!
@@ -211,7 +212,7 @@ static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* obj_
     // plain non internal objects -
     if (!(obj_in_snap->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL))
     {
-        ph_printf("External object, normal iter\n");
+        // ph_printf("External object, normal iter\n");
         unsigned i;
 
         for (i = 0; i < da_po_limit(obj_in_snap); i++)
@@ -224,7 +225,7 @@ static void gc_process_children(gc_iterator_call_t f, pvm_object_storage_t* obj_
     // We're here if object is internal.
 
     // Now find and call class-specific function: pvm_gc_iter_*
-    ph_printf("Internal object, get iter method\n");
+    // ph_printf("Internal object, get iter method\n");
     gc_iterator_func_t  iter = pvm_internal_classes[pvm_object_da(shift_ptr(obj_in_snap->_class, shift), class)->sys_table_id].iter;
 
     iter(f, obj_in_snap, arg);

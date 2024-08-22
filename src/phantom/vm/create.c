@@ -1103,6 +1103,7 @@ void pvm_gc_iter_directory(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 
     gc_fcall( func, arg, da->keys );
     gc_fcall( func, arg, da->values );
+    gc_fcall( func, arg, da->flags_container );
 }
 
 
