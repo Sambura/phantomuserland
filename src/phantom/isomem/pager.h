@@ -128,13 +128,10 @@ void        pager_start_io();
 void        phantom_fsck(int do_rebuild );
 
 
-void        phantom_free_snap(
-        disk_page_no_t old_snap_start,
-        disk_page_no_t curr_snap_start,
-        disk_page_no_t new_snap_start,
-        disk_page_no_t snap_reading_start
+void phantom_free_snap(
+    disk_page_no_t* to_free_arr, int to_free_arr_len,
+    disk_page_no_t* actual_arr, int actual_arr_len
 );
-
 
 #endif // PAGER_H
 

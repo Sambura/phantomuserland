@@ -1657,23 +1657,29 @@ static int request_snap_flag = 0;
 static int seconds_between_snaps = 5;
 
 static void free_old_snapshot() {
+    hal_mutex_lock(vm_read_snap_mutex);
     disk_page_no_t to_free = pager_superblock_ptr()->snap_to_free;
     disk_page_no_t snap_already_read = pager_superblock_ptr()->snap_already_read;
+    ph_printf("snap_to_free: %d, snap_already_read: %d\n", to_free, snap_already_read);
+    if (to_free == 0 && snap_already_read == 0) {
+        hal_mutex_unlock(vm_read_snap_mutex);
+        return;
+    }
     disk_page_no_t snap_reading = pager_superblock_ptr()->snap_reading;
-
-    if (to_free == 0 || to_free == snap_reading) return;
-
+    ph_printf("snap_reading: %d\n", snap_reading);
+    
     disk_page_no_t actual1 = pager_superblock_ptr()->prev_snap;
     disk_page_no_t actual2 = pager_superblock_ptr()->last_snap;
     disk_page_no_t actual3 = (snap_reading == actual1 || snap_reading == actual2) ? 0 : snap_reading;
-    disk_page_no_t[] actual_arr = { actual1, acutal2, actual3 };
+    disk_page_no_t actual_arr[] = { actual1, actual2, actual3 };
 
     disk_page_no_t free1 = to_free;
     disk_page_no_t free2 = (snap_already_read != free1) ? snap_already_read : 0;
-    disk_page_no_t[] free_arr = { free1, free2 };
+    disk_page_no_t free_arr[] = { free1, free2 };
 
     phantom_free_snap(free_arr, 2, actual_arr, 3);
-    
+
+    ph_printf("we returned from phantom_free_snap\n");
     pager_superblock_ptr()->snap_to_free = 0;
     // Force all io to complete BEFORE updating superblock
     pager_fence();
@@ -1682,6 +1688,7 @@ static void free_old_snapshot() {
     pager_free_blocklist_pages();
     pager_commit_active_free_list();
     pager_update_superblock();
+    hal_mutex_unlock(vm_read_snap_mutex);
 }
 
 static void vm_map_snapshot_thread(void)
@@ -1693,8 +1700,8 @@ static void vm_map_snapshot_thread(void)
     {
         SHOW_FLOW0( 1, "Snapshot loop");
         SHOW_FLOW(0, "%d %d %d", stop_lazy_pageout_thread, vm_regular_snaps_enabled, request_snap_flag);
-        
-        // free_old_snapshot();
+
+        //free_old_snapshot();
 
         if( stop_lazy_pageout_thread )
         {

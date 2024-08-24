@@ -61,12 +61,15 @@ void do_ref_dec_p(pvm_object_storage_t *p); // for deferred refdec
 
 
 
+
 // ------------------------------------------------------------
 // shared between alloc.c and gc.c
 
 // Gigant lock for now. TODO
 extern hal_mutex_t  *vm_alloc_mutex;
 
+extern hal_mutex_t *vm_read_snap_mutex;
+void init_gc();
 
 void * get_pvm_object_space_start(void);
 void * get_pvm_object_space_end(void);
