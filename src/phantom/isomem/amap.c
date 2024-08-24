@@ -133,7 +133,6 @@ amap_iterate_flags( amap_t *map, void (*f)( amap_elem_addr_t from, amap_elem_siz
     amap_entry_t *ie;
     queue_iterate(&(map->queue), ie, amap_entry_t *, chain)
     {
-        ph_printf("ie: %p\n", ie);
         if( ie->flags == flags )
             f(ie->start, ie->n_elem, ie->flags, arg);
     }

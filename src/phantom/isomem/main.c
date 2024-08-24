@@ -594,13 +594,13 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
         // }
 
         ph_printf("\nGC started:\n");
-        // phantom_snapper_wait_4_threads();
+        phantom_snapper_wait_4_threads();
         run_gc_on_snap();
         ph_printf("\nGC end:\n");
         // ph_printf("before reenable threads:\n");
         // pvm_object_t obj = (void*)0x413f4fb8;
         // dumpo(obj);
-        // phantom_snapper_reenable_threads();
+        phantom_snapper_reenable_threads();
         // ph_printf("after reenable threads:\n");
     }
 

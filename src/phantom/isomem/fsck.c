@@ -582,7 +582,6 @@ static void free_snap_worker(disk_page_no_t toFree, int flags)
 
     //SHOW_FLOW( 0, "Free old snap blk: %ld", (long)toFree );
     //ph_printf( " %ld", (long)toFree );
-    ph_printf("snap worker free page page_no_t: %ld\n", (long)toFree);
     pager_free_page( toFree );
 }
 
@@ -615,15 +614,10 @@ void phantom_free_snap(
         }
     }
     
-    ph_printf("iterate_map(free_snap_worker, MAP_FREE)\n");
     iterate_map(free_snap_worker, MAP_FREE);
-    ph_printf("iterate_map(free_blocklist_page_snap_worker, MAP_LIST_NODE)\n");
     iterate_map(free_blocklist_page_snap_worker, MAP_LIST_NODE);
-    ph_printf("pager_commit_active_free_list()\n");
     pager_commit_active_free_list();
-    ph_printf("fsck_delete_map()\n");
     fsck_delete_map();
-    ph_printf("return from phantom_free_snap()\n");
 }
 
 // void phantom_free_snap(

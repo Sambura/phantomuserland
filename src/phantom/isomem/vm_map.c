@@ -1681,6 +1681,7 @@ static void free_old_snapshot() {
 
     ph_printf("we returned from phantom_free_snap\n");
     pager_superblock_ptr()->snap_to_free = 0;
+    pager_superblock_ptr()->snap_already_read = 0;
     // Force all io to complete BEFORE updating superblock
     pager_fence();
     pager_update_superblock();
@@ -1701,7 +1702,7 @@ static void vm_map_snapshot_thread(void)
         SHOW_FLOW0( 1, "Snapshot loop");
         SHOW_FLOW(0, "%d %d %d", stop_lazy_pageout_thread, vm_regular_snaps_enabled, request_snap_flag);
 
-        //free_old_snapshot();
+        free_old_snapshot();
 
         if( stop_lazy_pageout_thread )
         {
