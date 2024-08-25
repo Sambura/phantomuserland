@@ -475,8 +475,10 @@ static bool initialize_wasm(pvm_object_t o) {
         (pvm_da_to_object(master_instance))->_class != pvm_get_wasm_class()
         )
     {
+        assert(da->master_ref == 0);
         master_instance = da;
-        da->is_master = true;
+    } else { // master already exists
+        da->master_ref = master_instance;
     }
     hal_mutex_unlock(vm_alloc_mutex);
     
@@ -899,18 +901,18 @@ void pvm_gc_iter_wasm(gc_iterator_call_t func, pvm_object_t self, void *arg) {
     func(wasm_da->env_vars_array, arg);
     func(wasm_da->wasm_sandboxed_objects, arg);
 
-    if (!wasm_da->is_master) {
+    if (wasm_da->master_ref) {
         ph_printf("mutex and cond arrays are not marked\n");
-        func(pvm_da_to_object(master_instance), arg);
+        func(pvm_da_to_object(wasm_da->master_ref), arg);
         return;
     }
 
     ph_printf("marking mutex and cond arrays\n");
 
-    func(master_instance->wasm_native_symbols, arg);
-    func(master_instance->wasm_runtime_objects, arg);
-    func(master_instance->wasm_mutex_array, arg);
-    func(master_instance->wasm_cond_array, arg);
+    func(wasm_da->wasm_native_symbols, arg);
+    func(wasm_da->wasm_runtime_objects, arg);
+    func(wasm_da->wasm_mutex_array, arg);
+    func(wasm_da->wasm_cond_array, arg);
 }
 
 syscall_func_t  syscall_table_4_wasm[16] =

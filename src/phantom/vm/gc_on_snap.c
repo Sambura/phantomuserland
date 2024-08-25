@@ -273,6 +273,8 @@ static pvm_object_storage_t **collect_unmarked(char *start) {
 
 static int free_unmarked(pvm_object_storage_t **to_free) {
     int i = 0;
+
+    vm_lock_persistent_memory();
     while (to_free[i] != 0) {
         pvm_object_storage_t *p = to_free[i];
         ph_printf("Freeing object %p\n", p);
@@ -291,4 +293,5 @@ static int free_unmarked(pvm_object_storage_t **to_free) {
         p->_ah.alloc_flags = PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE; // free now
         i++;
     }
+    vm_unlock_persistent_memory();
 }
