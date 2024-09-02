@@ -435,11 +435,7 @@ void pvm_gc_iter_io(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
     struct data_area_4_io      *da = (struct data_area_4_io *)os->da;
 
-    (void) da;
-
-    //gc_fcall( func, arg, ot );
-    //gc_fcall( func, arg, da->p_kernel_state_object );
-    //gc_fcall( func, arg, da->callback );
+    func(da->name, arg);
 }
 
 

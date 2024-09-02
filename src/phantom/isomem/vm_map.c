@@ -214,6 +214,29 @@ static inline void page_touch_history_arg(vm_page *p, int arg)
 
 static void    page_fault( vm_page *p, int  is_writing );
 
+// merge with addr_to_vm_page? 
+long addr_to_page_index(unsigned long addr)
+{
+    addr -= (addr_t)vm_map_start_of_virtual_address_space;
+
+    if( addr >= (((unsigned long)vm_map_vm_page_count) * __MEM_PAGE))
+        return -1;
+
+    return addr / __MEM_PAGE;
+}
+
+int addr_to_page_offset(unsigned long addr)
+{
+    addr -= (addr_t)vm_map_start_of_virtual_address_space;
+
+    if( addr >= (((unsigned long)vm_map_vm_page_count) * __MEM_PAGE))
+        return -1;
+
+    return addr % __MEM_PAGE;
+}
+
+vm_page *get_vm_page(unsigned long index) { return &vm_map_map[index]; }
+
 static vm_page *addr_to_vm_page(unsigned long addr, struct trap_state *ts)
 {
     // ph_printf("addr_raw=%X\n", addr);
@@ -1458,10 +1481,15 @@ void do_snapshot(void)
 
     if(enabled) hal_sti();
 
+    pvm_count_allocated_objects();
+
     phantom_snapper_reenable_threads();
 #if USE_SNAP_WAIT
     signal_snap_snap_passed(); // or before enabling threads?
 #endif
+
+    pvm_swap_gc_buffers(); // merge into 1 function??
+    pvm_object_t cycle_candidates = pvm_consume_gc_buffer_old();
 
     // YES, YES, YES, Snap is nearly done.
 
@@ -1487,6 +1515,8 @@ void do_snapshot(void)
     // the disk data structure for them
 
     // TODO - free prev snap first! -- (why?)
+
+    run_gc_incremental(cycle_candidates);
 
     disk_page_no_t new_snap_head = 0;
 

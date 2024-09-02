@@ -337,15 +337,13 @@ pvm_create_page_object( int n_slots, pvm_object_t *init, int init_slots )
 
 	assert(init_slots < n_slots);
 
-	int i;
-	for( i = 0; i < init_slots; i++ ) {
-		data_area[i] = *init++;
-        ref_inc_o(data_area[i]); // XXX : hack to avoid elements to be freed when the original page is deleted
+    // assuming pvm_object_create_dynamic returns zeroe'd out data area
+    // init new page
+    if (init) {
+        ph_memcpy(data_area, init, init_slots * sizeof(pvm_object_t));
+        // clean old one to avoid refdecs on deletion
+        ph_memset(init, 0, init_slots * sizeof(pvm_object_t));
     }
-
-	for( ; i < n_slots; i++ )
-		data_area[i] = pvm_get_null_object();
-
 	return _data;
 }
 
@@ -526,7 +524,6 @@ void pvm_internal_init_class(pvm_object_t  os)
 
 void pvm_gc_iter_class(gc_iterator_call_t func, pvm_object_t  os, void* arg)
 {
-    ph_printf("iter class called on %p\n", os);
     struct data_area_4_class* da = (struct data_area_4_class*)&(os->da);
     gc_fcall(func, arg, da->object_default_interface);
     gc_fcall(func, arg, da->class_name);
@@ -576,6 +573,9 @@ void pvm_gc_iter_thread(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 	gc_fcall( func, arg, da->call_frame );
 	gc_fcall( func, arg, da->owner );
 	gc_fcall( func, arg, da->environment );
+#if NEW_VM_SLEEP
+	gc_fcall( func, arg, da->cond_mutex );
+#endif
 }
 
 
@@ -642,6 +642,7 @@ void pvm_internal_init_mutex(pvm_object_t  os)
     //in_method = 0;
 }
 
+// this iter is turned off right now
 void pvm_gc_iter_mutex(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
     struct data_area_4_mutex *      da = (struct data_area_4_mutex *)os->da;
@@ -650,12 +651,14 @@ void pvm_gc_iter_mutex(gc_iterator_call_t func, pvm_object_t  os, void *arg)
     //pvm_spin_init( &da->pvm_lock );
 //    in_method = 0;
 
+    // we don't want mutex to keep other threads alive, so this is not needed
     gc_fcall( func, arg, da->waiting_threads_array );
 
     //for( i = 0; i < MAX_MUTEX_THREADS; i++ )
     //    gc_fcall( func, arg, da->waiting_threads[i] );
 
 
+    // we don't want mutex to keep the owner thread alive, so this is not needed
     gc_fcall( func, arg, pvm_da_to_object(da->owner_thread) );
 }
 
@@ -1165,7 +1168,7 @@ void pvm_gc_finalizer_connection( pvm_object_t  os )
 void pvm_restart_connection( pvm_object_t o )
 {
     struct data_area_4_connection *da = pvm_object_da( o, connection );
-ph_printf("restarting connection");
+    ph_printf("restarting connection");
     da->kernel = 0;
 
     int ret = pvm_connect_object(o,0);

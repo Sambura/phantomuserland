@@ -424,8 +424,8 @@ errno_t phantom_connect_object( struct data_area_4_connection *da, struct data_a
             da->v_kernel_state = 0;
 
         // now create object for persistent state
-
-        if(te->persistent_state_size)
+        // since this function also restarts connection, this may already be created
+        if(te->persistent_state_size && da->p_kernel_state == NULL)
         {
             pvm_object_t bo = pvm_create_binary_object( te->persistent_state_size, 0);
             if( pvm_isnull(bo) )
@@ -436,15 +436,10 @@ errno_t phantom_connect_object( struct data_area_4_connection *da, struct data_a
                 return ENOMEM;
             }
 
-            // XXX : the object is created at each re-connect, so added refdec to free
-            //  old objects. The real question : why do we recreate it in the first place?
-            // also probably worth to make sure contents of objects are not used anywhere... although it is not incref'ed so...
-            ref_dec_o(da->p_kernel_state_object);
             da->p_kernel_state_object = bo;
             struct data_area_4_binary *bda = pvm_object_da( bo, binary );
 
             da->p_kernel_state = &(bda->data);
-
         }
         else
             da->p_kernel_state = 0;

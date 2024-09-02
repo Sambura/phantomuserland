@@ -175,6 +175,9 @@ void       	vm_page_req_pageout();
 
     void                vm_map_wait_for_finish(void);
 
+    long addr_to_page_index(unsigned long addr);
+    int addr_to_page_offset(unsigned long addr);
+
 //extern vm_map_impl   vm_map;
 
 /*

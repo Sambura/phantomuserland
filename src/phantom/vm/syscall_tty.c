@@ -360,10 +360,9 @@ void pvm_internal_init_tty( pvm_object_t  ttyos )
 
 void pvm_gc_iter_tty(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
-    (void) func;
-    (void) os;
-    (void) arg;
-    // Empty
+    struct data_area_4_tty      *tty = (struct data_area_4_tty *)os->da;
+    
+    func(tty->o_pixels, arg);
 }
 
 void pvm_gc_finalizer_tty( pvm_object_t os )

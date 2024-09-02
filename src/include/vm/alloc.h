@@ -43,8 +43,13 @@ void debug_catch_object(const char *msg, pvm_object_storage_t *p);
 
 // gc
 
+pvm_object_t pvm_get_gc_buffer(void);
+pvm_object_t pvm_consume_gc_buffer_old(void);
+void pvm_swap_gc_buffers(void); 
+
 void run_gc(void);
 void run_gc_on_snap(void);
+void run_gc_incremental(pvm_object_t cycle_candidates);
 
 // Make sure this object won't be deleted with refcount dec
 // used on sys global objects

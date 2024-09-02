@@ -713,7 +713,7 @@ void pvm_internal_init_istack(pvm_object_t os )
 
 void pvm_gc_iter_istack(gc_iterator_call_t func, pvm_object_t  os, void *arg)
 {
-    struct data_area_4_object_stack *da = (struct data_area_4_object_stack *)&(os->da);
+    struct data_area_4_integer_stack *da = (struct data_area_4_integer_stack *)&(os->da);
 
     // No objects in the integer stack, but please visit linked list ifself
 

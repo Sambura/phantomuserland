@@ -113,6 +113,7 @@ errno_t cn_udp_init( struct data_area_4_connection *c, struct data_area_4_thread
     SHOW_FLOW( 1, "connect udp %s", suffix );
 
     struct cn_udp_volatile *vp = c->v_kernel_state;
+    (void) vp;
 
 #if HAVE_NET
     int rc = udp_open( &vp->udp_endpoint );

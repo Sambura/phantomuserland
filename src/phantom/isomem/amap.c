@@ -125,11 +125,6 @@ amap_iterate_all( amap_t *map, void (*f)( amap_elem_addr_t from, amap_elem_size_
 void
 amap_iterate_flags( amap_t *map, void (*f)( amap_elem_addr_t from, amap_elem_size_t n_elem, u_int32_t flags, void *arg ), void *arg, u_int32_t flags )
 {
-    ph_printf("map: %p, f: %p, arg: %p\n", map, f, arg);
-    ph_printf("queue addr: %p\n", &(map->queue));
-    ph_printf("queue next addr: %p\n", map->queue.next);
-    ph_printf("queue prev addr: %p\n", map->queue.prev);
-    
     amap_entry_t *ie;
     queue_iterate(&(map->queue), ie, amap_entry_t *, chain)
     {

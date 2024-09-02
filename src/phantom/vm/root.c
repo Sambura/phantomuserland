@@ -59,6 +59,7 @@ static void runclass(int, char **);
 static void process_generic_restarts(pvm_object_t root);
 static void process_specific_restarts(void);
 
+extern void release_gc_buffer(pvm_object_t gc_buffer);
 
 /**
  *
@@ -120,6 +121,12 @@ void pvm_root_init(void)
     pvm_root.root_dir = pvm_get_field( root, PVM_ROOT_OBJECT_ROOT_DIR );
     pvm_root.kernel_stats = pvm_get_field( root, PVM_ROOT_KERNEL_STATISTICS );
     pvm_root.class_dir = pvm_get_field( root, PVM_ROOT_CLASS_DIR );
+    // currently snapshot contains the old *deleted* buffer, replace with a fresh one
+    pvm_set_field_norefdec(root, PVM_ROOT_GC_BUFFER, pvm_create_array_object()); // --
+    pvm_root.gc_buffer = pvm_get_field( root, PVM_ROOT_GC_BUFFER );
+    pvm_root.gc_buffer_old = pvm_get_field( root, PVM_ROOT_GC_BUFFER_OLD );
+    assert(pvm_is_null(pvm_root.gc_buffer_old));
+    // release_gc_buffer(pvm_consume_gc_buffer_old()); // delete old gc buffer (from reality)
 
 
     process_specific_restarts();
@@ -233,6 +240,8 @@ static void pvm_save_root_objects()
     pvm_set_field( root, PVM_ROOT_KERNEL_STATISTICS, pvm_root.kernel_stats );
     pvm_set_field( root, PVM_ROOT_CLASS_DIR, pvm_root.class_dir );
 
+    pvm_set_field( root, PVM_ROOT_GC_BUFFER, pvm_root.gc_buffer );
+    pvm_set_field( root, PVM_ROOT_GC_BUFFER_OLD, pvm_root.gc_buffer_old );
 
 }
 
@@ -321,6 +330,7 @@ static void pvm_create_root_objects()
 
     pvm_root.kernel_stats  = pvm_create_binary_object( STAT_CNT_PERSISTENT_DA_SIZE, 0 );
     pvm_root.class_dir     = pvm_create_directory_object();
+    pvm_root.gc_buffer     = pvm_create_array_object();
 
 
     ref_saturate_o(pvm_root.threads_list); //Need it?
@@ -747,6 +757,24 @@ int pvm_disconnect_object(pvm_object_t o, struct data_area_4_thread *tc)
     return phantom_disconnect_object( da );
 }
 
+pvm_object_t pvm_get_gc_buffer() {
+    return pvm_root.gc_buffer;
+}
 
+pvm_object_t pvm_consume_gc_buffer_old() {
+    pvm_object_t old_buffer = pvm_root.gc_buffer_old;
+    pvm_root.gc_buffer_old = NULL;
+    pvm_object_t root = get_root_object_storage();
+    pvm_set_field_norefdec( root, PVM_ROOT_GC_BUFFER_OLD, pvm_root.gc_buffer_old );
+    return old_buffer;
+}
 
+void pvm_swap_gc_buffers() {
+    assert(pvm_root.gc_buffer_old == NULL);
+    pvm_root.gc_buffer_old = pvm_root.gc_buffer;
+    pvm_root.gc_buffer = pvm_create_array_object();
 
+    pvm_object_t root = get_root_object_storage();
+    pvm_set_field_norefdec( root, PVM_ROOT_GC_BUFFER, pvm_root.gc_buffer );
+    pvm_set_field_norefdec( root, PVM_ROOT_GC_BUFFER_OLD, pvm_root.gc_buffer_old );
+}
