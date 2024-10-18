@@ -214,6 +214,29 @@ static inline void page_touch_history_arg(vm_page *p, int arg)
 
 static void    page_fault( vm_page *p, int  is_writing );
 
+// merge with addr_to_vm_page? 
+long addr_to_page_index(unsigned long addr)
+{
+    addr -= (addr_t)vm_map_start_of_virtual_address_space;
+
+    if( addr >= (((unsigned long)vm_map_vm_page_count) * __MEM_PAGE))
+        return -1;
+
+    return addr / __MEM_PAGE;
+}
+
+int addr_to_page_offset(unsigned long addr)
+{
+    addr -= (addr_t)vm_map_start_of_virtual_address_space;
+
+    if( addr >= (((unsigned long)vm_map_vm_page_count) * __MEM_PAGE))
+        return -1;
+
+    return addr % __MEM_PAGE;
+}
+
+vm_page *get_vm_page(unsigned long index) { return &vm_map_map[index]; }
+
 static vm_page *addr_to_vm_page(unsigned long addr, struct trap_state *ts)
 {
     // ph_printf("addr_raw=%X\n", addr);
@@ -1458,10 +1481,15 @@ void do_snapshot(void)
 
     if(enabled) hal_sti();
 
+    pvm_count_allocated_objects();
+
     phantom_snapper_reenable_threads();
 #if USE_SNAP_WAIT
     signal_snap_snap_passed(); // or before enabling threads?
 #endif
+
+    pvm_swap_gc_buffers(); // merge into 1 function??
+    pvm_object_t cycle_candidates = pvm_consume_gc_buffer_old();
 
     // YES, YES, YES, Snap is nearly done.
 
@@ -1487,6 +1515,8 @@ void do_snapshot(void)
     // the disk data structure for them
 
     // TODO - free prev snap first! -- (why?)
+
+    run_gc_incremental(cycle_candidates);
 
     disk_page_no_t new_snap_head = 0;
 
@@ -1657,23 +1687,39 @@ static int request_snap_flag = 0;
 static int seconds_between_snaps = 5;
 
 static void free_old_snapshot() {
-    if (pager_superblock_ptr()->snap_to_free == 0) return;
-
+    hal_mutex_lock(vm_read_snap_mutex);
     disk_page_no_t to_free = pager_superblock_ptr()->snap_to_free;
+    disk_page_no_t snap_already_read = pager_superblock_ptr()->snap_already_read;
+    ph_printf("snap_to_free: %d, snap_already_read: %d\n", to_free, snap_already_read);
+    if (to_free == 0 && snap_already_read == 0) {
+        hal_mutex_unlock(vm_read_snap_mutex);
+        return;
+    }
+    disk_page_no_t snap_reading = pager_superblock_ptr()->snap_reading;
+    ph_printf("snap_reading: %d\n", snap_reading);
+    
     disk_page_no_t actual1 = pager_superblock_ptr()->prev_snap;
     disk_page_no_t actual2 = pager_superblock_ptr()->last_snap;
+    disk_page_no_t actual3 = (snap_reading == actual1 || snap_reading == actual2) ? 0 : snap_reading;
+    disk_page_no_t actual_arr[] = { actual1, actual2, actual3 };
 
-    phantom_free_snap( to_free, actual1, actual2 );
+    disk_page_no_t free1 = to_free;
+    disk_page_no_t free2 = (snap_already_read != free1) ? snap_already_read : 0;
+    disk_page_no_t free_arr[] = { free1, free2 };
+
+    phantom_free_snap(free_arr, 2, actual_arr, 3);
+
+    ph_printf("we returned from phantom_free_snap\n");
     pager_superblock_ptr()->snap_to_free = 0;
-
+    pager_superblock_ptr()->snap_already_read = 0;
     // Force all io to complete BEFORE updating superblock
     pager_fence();
-
     pager_update_superblock();
 
     pager_free_blocklist_pages();
     pager_commit_active_free_list();
     pager_update_superblock();
+    hal_mutex_unlock(vm_read_snap_mutex);
 }
 
 static void vm_map_snapshot_thread(void)
@@ -1685,7 +1731,7 @@ static void vm_map_snapshot_thread(void)
     {
         SHOW_FLOW0( 1, "Snapshot loop");
         SHOW_FLOW(0, "%d %d %d", stop_lazy_pageout_thread, vm_regular_snaps_enabled, request_snap_flag);
-        
+
         free_old_snapshot();
 
         if( stop_lazy_pageout_thread )

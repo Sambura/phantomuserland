@@ -156,11 +156,13 @@ void             pvm_set_field( pvm_object_t , unsigned int no, pvm_object_t val
 // Need it here? It will be called by usual set field ones...
 pvm_object_t     pvm_get_array_ofield(pvm_object_t o, unsigned int slot  );
 void             pvm_set_array_ofield(pvm_object_t o, unsigned int slot, pvm_object_t value );
+void             pvm_set_field_norefdec( pvm_object_t o, unsigned int slot, pvm_object_t value );
 
 int              get_array_size(pvm_object_t array);
 #define pvm_get_array_size get_array_size
 void             pvm_append_array(pvm_object_t array, pvm_object_t value_to_append );
 void             pvm_pop_array(pvm_object_t array, pvm_object_t value_to_pop );
+void             pvm_clear_array(pvm_object_t array);
 
 // Debug
 

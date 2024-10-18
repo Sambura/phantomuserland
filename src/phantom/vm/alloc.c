@@ -198,7 +198,8 @@ static void init_free_object_header(pvm_object_storage_t *op, unsigned int size)
 }
 
 
-#define PVM_MIN_FRAGMENT_SIZE  (sizeof(pvm_object_storage_t) + sizeof(int) )      /* should be a minimal object size at least */
+// sizeof(void*) should account for object size aligning (currently 8 byte alignment is used)
+#define PVM_MIN_FRAGMENT_SIZE  (sizeof(pvm_object_storage_t) + sizeof(void*) )      /* should be a minimal object size at least */
 
 
 // returns allocated object
@@ -402,6 +403,10 @@ static pvm_object_t pvm_find(unsigned int size, int arena)
         if( PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE != curr->_ah.alloc_flags ) // refcount == 0, but refzero or in buffer or both
         {
             DEBUG_PRINT("(c)");
+            // not sure why exactly can allocator free objects but it may
+            // conflict with GC, if this panic ever happens - needs further
+            // investigation
+            panic("What is this??");
             refzero_process_children( curr );
             // Supposed to be free here
         }
@@ -463,7 +468,7 @@ static pvm_object_storage_t * pool_alloc(unsigned int size, int arena)
          *
          */
         if(vm_alloc_mutex) hal_mutex_unlock( vm_alloc_mutex );
-        run_gc();
+        // run_gc();
         if(vm_alloc_mutex) hal_mutex_lock( vm_alloc_mutex );
 #else
         break; //skip GC, until we bring context to the allocator
@@ -662,7 +667,7 @@ static int memcheck_one(unsigned int i, void * start, void * end)
         return 0;
     }
 
-    ph_printf("\n\n-----------------\nMemcheck ERROR: reached out of arena end at 0x%p (%ld bytes size)\n-----------------\n\n", curr, (long) (((void *)curr) - start) );
+    ph_printf("\n\n-----------------\nMemcheck ERROR: reached out of arena end at %p (%ld bytes size)\n-----------------\n\n", curr, (long) (((void *)curr) - start) );
     return 1;
 }
 
@@ -676,7 +681,7 @@ static int64_t count_objects(void *start, void *end)
     int64_t arena_size = ((char*) end) - ((char*) start);
     int64_t used_bytes = 0;
     pvm_object_t curr = start;
-    int int_count = 0, long_count = 0, str_count = 0, arr_count = 0, page_count = 0;
+    // int int_count = 0, long_count = 0, str_count = 0, arr_count = 0, page_count = 0;
 
     while(((void *)curr) < end) {
         if(!pvm_alloc_is_object(curr)) return -1;
@@ -686,19 +691,20 @@ static int64_t count_objects(void *start, void *end)
             count++;
             used_bytes += curr->_ah.exact_size;
 
-            if (curr->_class == pvm_get_int_class()) int_count++;
-            if (curr->_class == pvm_get_long_class()) long_count++;
-            if (curr->_class == pvm_get_string_class()) str_count++;
-            if (curr->_class == pvm_get_array_class()) arr_count++;
-            if (curr->_class == pvm_get_page_class()) page_count++;
+            // if (curr->_class == pvm_get_int_class()) int_count++;
+            // if (curr->_class == pvm_get_long_class()) long_count++;
+            // if (curr->_class == pvm_get_string_class()) str_count++;
+            // if (curr->_class == pvm_get_array_class()) arr_count++;
+            // if (curr->_class == pvm_get_page_class()) page_count++;
         }
 
         curr = (pvm_object_t)( ((void *)curr) + curr->_ah.exact_size );
     }
 
     int percent_used = 100 * used_bytes / arena_size;
-    SHOW_INFO(0, "Arena @%p, ints: %d, longs: %d, strs: %d, arrs: %d, pages: %d | %d%% used", 
-        start, int_count, long_count, str_count, arr_count, page_count, percent_used);
+    SHOW_INFO(0, "Arena @%p, %d%% used", start, percent_used);
+    // SHOW_INFO(0, "Arena @%p, ints: %d, longs: %d, strs: %d, arrs: %d, pages: %d | %d%% used", 
+    //     start, int_count, long_count, str_count, arr_count, page_count, percent_used);
 
     return count;
 }

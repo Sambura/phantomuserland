@@ -244,6 +244,7 @@ int phantom_main_entry_point(int argc, char **argv, char **envp)
 
     // heap_init_mutex(); // After threads // OK
     pvm_alloc_threaded_init(); // After threads // OK
+    init_gc();
 
     // Scheduler is contolled by Genode
     /*

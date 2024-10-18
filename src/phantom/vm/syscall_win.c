@@ -232,6 +232,7 @@ static int win_setSize_26( pvm_object_t me, pvm_object_t *ret, struct data_area_
     struct data_area_4_window      *da = pvm_data_area( me, window );
     //struct data_area_4_binary *bda = (struct data_area_4_binary *)da->o_pixels->da;
     //window_handle_t w = (window_handle_t)&bda->data;
+    (void) da;
 
     CHECK_PARAM_COUNT(2);
 

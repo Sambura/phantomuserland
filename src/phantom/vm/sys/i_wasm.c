@@ -475,7 +475,10 @@ static bool initialize_wasm(pvm_object_t o) {
         (pvm_da_to_object(master_instance))->_class != pvm_get_wasm_class()
         )
     {
+        assert(da->master_ref == 0);
         master_instance = da;
+    } else { // master already exists
+        da->master_ref = master_instance;
     }
     hal_mutex_unlock(vm_alloc_mutex);
     
@@ -898,15 +901,18 @@ void pvm_gc_iter_wasm(gc_iterator_call_t func, pvm_object_t self, void *arg) {
     func(wasm_da->env_vars_array, arg);
     func(wasm_da->wasm_sandboxed_objects, arg);
 
-    if (wasm_da != master_instance) {
-        func(pvm_da_to_object(master_instance), arg);
+    if (wasm_da->master_ref) {
+        ph_printf("mutex and cond arrays are not marked\n");
+        func(pvm_da_to_object(wasm_da->master_ref), arg);
         return;
     }
 
-    func(master_instance->wasm_native_symbols, arg);
-    func(master_instance->wasm_runtime_objects, arg);
-    func(master_instance->wasm_mutex_array, arg);
-    func(master_instance->wasm_cond_array, arg);
+    ph_printf("marking mutex and cond arrays\n");
+
+    func(wasm_da->wasm_native_symbols, arg);
+    func(wasm_da->wasm_runtime_objects, arg);
+    func(wasm_da->wasm_mutex_array, arg);
+    func(wasm_da->wasm_cond_array, arg);
 }
 
 syscall_func_t  syscall_table_4_wasm[16] =
@@ -930,6 +936,14 @@ void pvm_restart_wasm(pvm_object_t o) {
     // we should only have a single wasm object in restart list
     assert(master_instance == NULL);
     r_assert(initialize_wasm(o)); // sets master_instance
+
+    ph_printf("mutex array allocated: %d\n", pvm_object_is_allocated(master_instance->wasm_mutex_array));
+    dumpo(master_instance->wasm_mutex_array);
+    ph_printf("cond array allocated: %d\n", pvm_object_is_allocated(master_instance->wasm_cond_array));
+    dumpo(master_instance->wasm_cond_array);
+    dump_uarray(master_instance->wasm_mutex_array, "Mutexes");
+    dump_uarray(master_instance->wasm_cond_array, "Conds");
+
 
     foreach_in_uarray(master_instance->wasm_mutex_array, entry) {
         if (*entry) {

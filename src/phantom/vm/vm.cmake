@@ -33,6 +33,7 @@ set (PHANTOM_PVM_SOURCE
     internal.c 
     bulk.c 
     gc.c 
+    gc_on_snap.c
     wpaint.c 
     syscall_net.c 
     directory.c 

@@ -41,18 +41,38 @@
 // see Bacon algorithm (US Patent number 6879991, issued April 12, 2005) or (US Patent number 7216136 issued 8 May 2007)
 // TODO: not implemented,
 // Need persistent cycles_root_buffer not collected by usual gc/refcount - new internal object type?
+#define get_array_slot_nocheck(arr, i) ((pvm_object_t*)(pvm_data_area(arr, array)->page->da))[i]
 
+static int find_object_in_buffer(pvm_object_t p) {
+    pvm_object_t array = pvm_get_gc_buffer();
+    for (int i = 0; i < pvm_get_array_size(array); i++) {
+        if (get_array_slot_nocheck(array, i) == p) return i;
+    }
+
+    return -1;
+}
 static void cycle_root_buffer_add_candidate(pvm_object_storage_t *p)
 {
-    (void)p;
+    if (find_object_in_buffer(p) >= 0) return;
+    pvm_append_array(pvm_get_gc_buffer(), p);
 }
-static void cycle_root_buffer_rm_candidate(pvm_object_storage_t *p)
+void cycle_root_buffer_rm_candidate(pvm_object_storage_t *p)
 {
-    (void)p;
+    if (!pvm_get_gc_buffer()) return;
+    int index = find_object_in_buffer(p);
+    if (index < 0) return;
+    
+    struct data_area_4_array *da = pvm_data_area(pvm_get_gc_buffer(), array);
+    pvm_object_t *page = da_po_ptr((da->page)->da);
+    if (index != da->used_slots - 1) {
+        page[index] = page[da->used_slots - 1];
+    }
+    page[da->used_slots - 1] = NULL;
+    da->used_slots--; 
 }
 static void cycle_root_buffer_clear()
 {
-    //just set size to zero, so regular GC will ignore it gracefully
+    pvm_clear_array(pvm_get_gc_buffer());
 }
 void gc_collect_cycles()
 {
@@ -166,6 +186,7 @@ static int free_unmarked()
 
 static void mark_tree(pvm_object_storage_t * p)
 {
+    ph_printf("\nGC: process another object\n");
     p->_ah.gc_flags = gc_flags_last_generation;  // set
 
 
@@ -246,7 +267,8 @@ void refzero_process_children( pvm_object_storage_t *p )
 
     do_refzero_process_children( p );
 
-    if ( p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER )
+    // if ( p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER )
+    if ( !(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE) ) 
         cycle_root_buffer_rm_candidate( p );
 
     p->_ah.alloc_flags = PVM_OBJECT_AH_ALLOCATOR_FLAG_FREE;
@@ -416,18 +438,22 @@ void do_ref_dec_p(pvm_object_storage_t *p)
         }
         // if we decrement refcount and stil above zero - mark an object as potential cycle root;
         // and internal objects can't be a cycle root (sic!)
+        
         else
         {
         nonzero:;
-            if ( !(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL) )
-            {
-                if ( !(p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER) )
-                {
-                    cycle_root_buffer_add_candidate(p);
-                    p->_ah.alloc_flags |= PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER ;
-                }
-                p->_ah.alloc_flags |= PVM_OBJECT_AH_ALLOCATOR_FLAG_WENT_DOWN ;  // set down flag
+        // an internal object *can* form a loop: just put the array in itself (array is an internal object)
+            // if ( !(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL) )
+            //{
+            if ( !(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE) ) {
+                //if ( !(p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER) )
+                //{
+                cycle_root_buffer_add_candidate(p);
+                //    p->_ah.alloc_flags |= PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER ;
+                //}
+                //p->_ah.alloc_flags |= PVM_OBJECT_AH_ALLOCATOR_FLAG_WENT_DOWN ;  // set down flag
             }
+            //}
         }
     //nokill:;
     }
@@ -463,9 +489,10 @@ void ref_inc_p(pvm_object_storage_t *p)
     {
         //(p->_ah.refCount)++;
         ATOMIC_ADD_AND_FETCH( &(p->_ah.refCount), 1 );
-
-        if ( p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER )
-            p->_ah.alloc_flags &= ~PVM_OBJECT_AH_ALLOCATOR_FLAG_WENT_DOWN ;  //clear down flag
+        if ( !(p->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_CHILDFREE) ) 
+            cycle_root_buffer_rm_candidate(p);
+        // if ( p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER )
+        //    p->_ah.alloc_flags &= ~PVM_OBJECT_AH_ALLOCATOR_FLAG_WENT_DOWN ;  //clear down flag
     }
 }
 
@@ -479,12 +506,12 @@ void ref_saturate_p(pvm_object_storage_t *p)
     STAT_INC_CNT( OBJECT_SATURATE );
 
     // Saturated object can't be a loop collection candidate. Can it?
-    if ( p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER ) {
-        cycle_root_buffer_rm_candidate( p );
-
-        p->_ah.alloc_flags &= ~PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER;
-        p->_ah.alloc_flags &= ~PVM_OBJECT_AH_ALLOCATOR_FLAG_WENT_DOWN;
-    }
+    cycle_root_buffer_rm_candidate( p );
+    // if ( p->_ah.alloc_flags & PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER ) {
+// 
+    //     p->_ah.alloc_flags &= ~PVM_OBJECT_AH_ALLOCATOR_FLAG_IN_BUFFER;
+    //     p->_ah.alloc_flags &= ~PVM_OBJECT_AH_ALLOCATOR_FLAG_WENT_DOWN;
+    // }
 
     assert( p->_ah.object_start_marker == PVM_OBJECT_START_MARKER );
     assert( p->_ah.alloc_flags == PVM_OBJECT_AH_ALLOCATOR_FLAG_ALLOCATED );

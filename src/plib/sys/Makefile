@@ -74,8 +74,9 @@ $(BINDIR)/phantom.os.pc: phantom.os.time.pc phantom.osimpl.pc internal.world.pc
 $(BINDIR)/phantom.util.hashmap.pc: phantom.util.hashpair.pc
 
 $(BINDIR)/ru.dz.demo.chart.pc: phantom.os.pc internal.io.tty.pc internal.window.pc internal.connection.pc ru.dz.phantom.system.runnable.pc
-$(BINDIR)/ru.dz.demo.start.pc: ru.dz.demo.weather.pc ru.dz.demo.chart.pc
+$(BINDIR)/ru.dz.demo.start.pc: ru.dz.demo.weather.pc ru.dz.demo.chart.pc ru.dz.demo.wasm.pc ru.dz.phantom.persistence_test.pc ru.dz.phantom.performance_test.pc ru.dz.demo.garbage.pc
 $(BINDIR)/ru.dz.demo.weather.pc: ru.dz.demo.chart.pc internal.bitmap.pc
+$(BINDIR)/ru.dz.demo.garbage.pc: ru.dz.demo.garbage_unit.pc
 
 $(BINDIR)/ru.dz.phantom.backgrounds.pc: ../resources/backgrounds/phantom_dz_new_1024_768.ppm
 

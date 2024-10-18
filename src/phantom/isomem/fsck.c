@@ -593,34 +593,62 @@ static void free_blocklist_page_snap_worker(disk_page_no_t toFree, int flags)
     pager_free_blocklist_page_locked( toFree );
 }
 
-void phantom_free_snap(
-                       disk_page_no_t old_snap_start,
-                       disk_page_no_t curr_snap_start,
-                       disk_page_no_t new_snap_start
-                      )
-{
-    if( old_snap_start == 0 )
-    {
-        SHOW_FLOW0( 0, "*** No old snap, skip list deletion ***");
-        return;
-    }
 
-    SHOW_FLOW0( 0, "*** freeing old snap ***");
+void phantom_free_snap(
+    disk_page_no_t* to_free_arr, int to_free_arr_len,
+    disk_page_no_t* actual_arr, int actual_arr_len
+) {
     fsck_create_map();
 
-    fsck_list_justadd_as_free( old_snap_start );
-    fsck_list_justadd_as_used( curr_snap_start );
-    fsck_list_justadd_as_used( new_snap_start );
+    for (int i = 0; i < to_free_arr_len; i++) {
+        if (to_free_arr[i] != 0) {
+            ph_printf("Free old snap blk: %ld\n", (long)to_free_arr[i]);
+            fsck_list_justadd_as_free(to_free_arr[i]);
+        }
+    }
 
-
-    // go through list, free pages that are finally free in map
+    for (int i = 0; i < actual_arr_len; i++) {
+        if (actual_arr[i] != 0) {
+            ph_printf("Mark new snap blk: %ld\n", (long)actual_arr[i]);
+            fsck_list_justadd_as_used(actual_arr[i]);
+        }
+    }
+    
     iterate_map(free_snap_worker, MAP_FREE);
     iterate_map(free_blocklist_page_snap_worker, MAP_LIST_NODE);
     pager_commit_active_free_list();
-
     fsck_delete_map();
-
 }
+
+// void phantom_free_snap(
+//                        disk_page_no_t old_snap_start,
+//                        disk_page_no_t curr_snap_start,
+//                        disk_page_no_t new_snap_start,
+//                        disk_page_no_t snap_reading
+//                       )
+// {
+//     if( old_snap_start == 0 )
+//     {
+//         SHOW_FLOW0( 0, "*** No old snap, skip list deletion ***");
+//         return;
+//     }
+
+//     SHOW_FLOW0( 0, "*** freeing old snap ***");
+    // fsck_create_map();
+
+//     fsck_list_justadd_as_free( old_snap_start );
+//     fsck_list_justadd_as_used( curr_snap_start );
+//     fsck_list_justadd_as_used( new_snap_start );
+//     fsck_list_justadd_as_used( snap_reading );
+
+//     // go through list, free pages that are finally free in map
+//     iterate_map(free_snap_worker, MAP_FREE);
+//     iterate_map(free_blocklist_page_snap_worker, MAP_LIST_NODE);
+//     pager_commit_active_free_list();
+
+//     fsck_delete_map();
+
+// }
 
 
 

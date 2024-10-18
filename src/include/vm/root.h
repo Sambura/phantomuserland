@@ -108,7 +108,8 @@ struct pvm_root_t
     pvm_object_t           root_dir;               // Root object directory
     pvm_object_t           kernel_stats;           // Persisent kernel statistics
     pvm_object_t           class_dir;              // .internal.directory of all classes used - class load cache - TODO must use weak refs or cleanup on ref cnt == 1
-
+    pvm_object_t           gc_buffer;              // array of candidates for garbage collection
+    pvm_object_t           gc_buffer_old;              // array of candidates for garbage collection
 };
 
 extern struct pvm_root_t pvm_root;
@@ -267,7 +268,11 @@ extern struct pvm_root_t pvm_root;
 
 #define PVM_ROOT_CLASS_DIR 73
 
-#define PVM_ROOT_OBJECTS_COUNT (PVM_ROOT_CLASS_DIR+30)
+#define PVM_ROOT_GC_BUFFER 74
+
+#define PVM_ROOT_GC_BUFFER_OLD 75
+
+#define PVM_ROOT_OBJECTS_COUNT (PVM_ROOT_GC_BUFFER_OLD+30)
 
 
 

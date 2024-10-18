@@ -102,6 +102,9 @@ typedef struct phantom_disk_superblock
 
     disk_page_no_t              snap_to_free;   // snap that is yet to free
 
+    disk_page_no_t              snap_reading;
+    disk_page_no_t              snap_already_read;
+
     u_int32_t                   magic2;         // 32 bits  - DISK_STRUCT_MAGIC_SUPER_2
 
     disk_page_no_t              boot_list;                      // List of blocks with bootloader image or 0.

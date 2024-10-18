@@ -5,6 +5,9 @@
 
 struct data_area_4_wasm
 {
+    // 0 if self is master, points to master instance otherwise
+    struct data_area_4_wasm *master_ref;
+
     // .internal.array, stores objects containing description of wasm native symbols 
     pvm_object_t wasm_native_symbols;
     // .internal.array, stores objects allocated by wasm runtime using malloc

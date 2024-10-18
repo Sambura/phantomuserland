@@ -58,8 +58,10 @@ pvm_object_t  pvm_get_array_ofield(pvm_object_t o, unsigned int slot  )
     if(
        !(PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL & (o->_flags) ) ||
        !( PHANTOM_OBJECT_STORAGE_FLAG_IS_RESIZEABLE & (o->_flags) )
-      )
-        pvm_exec_panic0( "attempt to do an array op to non-array" );
+      ) {
+        dumpo((addr_t)o);
+        pvm_exec_panic0( "attempt to do get_ofield to non-array" );
+      }
 
     struct data_area_4_array *da = (struct data_area_4_array *)&(o->da);
 
@@ -77,8 +79,10 @@ void pvm_set_array_ofield(pvm_object_t o, unsigned int slot, pvm_object_t value 
     if(
        !(PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL & (o->_flags) ) ||
        !( PHANTOM_OBJECT_STORAGE_FLAG_IS_RESIZEABLE & (o->_flags) )
-      )
-        pvm_exec_panic0( "attempt to do an array op to non-array" );
+      ) {
+        dumpo((addr_t)o);
+        pvm_exec_panic0( "attempt to do set_ofield to non-array" );
+      }
 
     if( PHANTOM_OBJECT_STORAGE_FLAG_IS_IMMUTABLE &  (o->_flags) )
         pvm_exec_panic0( "attempt to set_array_ofield for immutable" );
@@ -137,8 +141,10 @@ void pvm_pop_array(pvm_object_t array, pvm_object_t value_to_pop )
     if(
        !(PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL & (array->_flags) ) ||
        !( PHANTOM_OBJECT_STORAGE_FLAG_IS_RESIZEABLE & (array->_flags) )
-      )
-        pvm_exec_panic0( "attempt to do an array op to non-array" );
+      ) {
+        pvm_exec_panic0( "attempt to do pop to non-array" );
+        dumpo((addr_t)array);
+      }
 
     if( PHANTOM_OBJECT_STORAGE_FLAG_IS_IMMUTABLE &  (array->_flags) )
         pvm_exec_panic0( "attempt to pop_array for immutable" );
@@ -162,6 +168,28 @@ void pvm_pop_array(pvm_object_t array, pvm_object_t value_to_pop )
     pvm_exec_panic0( "attempt to remove non existing element from array" );
 }
 
+void pvm_clear_array(pvm_object_t array) {
+    struct data_area_4_array *da = (struct data_area_4_array *)&(array->da);
+
+    verify_p(array);
+    if(
+       !(PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL & (array->_flags) ) ||
+       !( PHANTOM_OBJECT_STORAGE_FLAG_IS_RESIZEABLE & (array->_flags) )
+      ) {
+        pvm_exec_panic0( "attempt to clear non-array" );
+        dumpo((addr_t)array);
+      }
+
+    if( PHANTOM_OBJECT_STORAGE_FLAG_IS_IMMUTABLE &  (array->_flags) )
+        pvm_exec_panic0( "attempt to clear immutable array" );
+
+    if (da->page) {
+        pvm_object_t *p = da_po_ptr((da->page)->da);
+        ph_memset(p, 0, da->page_size * sizeof(pvm_object_t)); // clean page to avoid refdecs on contained objects
+    }
+    da->page_size = 16;
+    da->used_slots = 0;
+}
 
 
 /**
@@ -246,6 +274,33 @@ pvm_set_field( pvm_object_t o, unsigned int slot, pvm_object_t value )
     }
 
     if(da_po_ptr(o->da)[slot])     ref_dec_o(da_po_ptr(o->da)[slot]);  //decr old value
+    da_po_ptr(o->da)[slot] = value;
+}
+
+void
+pvm_set_field_norefdec( pvm_object_t o, unsigned int slot, pvm_object_t value )
+{
+    verify_p(o);
+    verify_o(value);
+
+    if( PHANTOM_OBJECT_STORAGE_FLAG_IS_IMMUTABLE &  (o->_flags) )
+        pvm_exec_panic0( "attempt to set_field for immutable" );
+
+    if( PHANTOM_OBJECT_STORAGE_FLAG_IS_INTERNAL & (o->_flags) )
+    {
+        if( PHANTOM_OBJECT_STORAGE_FLAG_IS_RESIZEABLE & (o->_flags) )
+        {
+            pvm_set_array_ofield( o, slot, value );
+            return;
+        }
+        pvm_exec_panic0( "attempt to save to internal" );
+    }
+
+    if( slot >= da_po_limit(o) )
+    {
+        pvm_exec_panic0( "set: slot index out of bounds" );
+    }
+
     da_po_ptr(o->da)[slot] = value;
 }
 /*
@@ -481,6 +536,7 @@ void dumpo( addr_t addr )
     ph_printf("Flags: '");
     print_object_flags(o);
     ph_printf("', ");
+    ph_printf("refCnt: %d\n", o->_ah.refCount);
     //ph_printf("', da size: %ld, ", (long)(o->_da_size) );
 
     if(o->_flags & PHANTOM_OBJECT_STORAGE_FLAG_IS_STRING)

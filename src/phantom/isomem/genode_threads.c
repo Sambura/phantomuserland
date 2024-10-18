@@ -65,6 +65,7 @@ phantom_thread_t *get_current_thread()
 
 tid_t get_current_tid(void)
 {
+    ph_printf("get_current_tid\n");
     _stub_print();
     return (int)pthread_self();
 }

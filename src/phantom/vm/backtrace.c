@@ -83,7 +83,8 @@ void pvm_exec_panic( const char *reason, struct data_area_4_thread *tda )
 
 
 void pvm_backtrace_current_thread(void)
-{
+{   
+    ph_printf("in backtrace\n");
     errno_t e = ENOENT;
     int tid = get_current_tid();
     if( tid < 0 )
@@ -131,6 +132,7 @@ void pvm_backtrace_current_thread(void)
 
 void pvm_backtrace(struct data_area_4_thread *tda)
 {
+    ph_printf("inside inner backtrace\n");
     struct pvm_code_handler *code = &tda->code;
 
     if(code->IP > code->IP_max)

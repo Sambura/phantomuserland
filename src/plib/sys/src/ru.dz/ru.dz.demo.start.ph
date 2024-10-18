@@ -14,26 +14,26 @@ package .ru.dz.demo;
 import .phantom.os;
 import .internal.io.tty;
 
+import .ru.dz.phantom.performance_test;
+import .ru.dz.phantom.persistence_test;
 import .ru.dz.demo.weather;
 import .ru.dz.demo.chart;
+import .ru.dz.demo.wasm;
+import .ru.dz.demo.garbage;
 
 attribute const * ->!;
 
 
 class start
 {
-        var wv : .ru.dz.demo.weather;
-        // var cv : .ru.dz.demo.chart;
+    var demo : .ru.dz.demo.garbage;
+    // var demo : .ru.dz.demo.weather;
+    // var demo : .ru.dz.demo.wasm;
 
     void run(var console : .internal.io.tty)
     {
-        //cv = new .ru.dz.demo.chart();
-        //cv.start(console);
-
-        wv = new  .ru.dz.demo.weather();
-        wv.run(console);
-
+        // demo = new  .ru.dz.demo.weather();
+        demo = new  .ru.dz.demo.garbage();
+        demo.run(console);
     }
-        
 };
-
